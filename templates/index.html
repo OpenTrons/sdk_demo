@@ -1,0 +1,124 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Run Protocol Test</title>
+</head>
+<body>
+
+<button id="disconnect_serial">Disconnect Serial</button>
+<button id="run_protocol">Run Protocol</button>
+
+<br/>
+
+<input type="text" id="connect_port" value="/dev/tty.usbmodem1421" />
+<button id="connect_serial">Connect Serial</button>
+
+<form id="jog_form">
+    X: <input name="x" />
+    Y: <input name="y" />
+    Z: <input name="z" />
+    <input type="submit" value="Move"/>
+</form>
+
+<form id="cal_container_form">
+    axis: <input name="axis" />
+    position: <input name="position"/>
+    X: <input name="x" />
+    Y: <input name="y" />
+    top: <input name="top" />
+    bottom: <input name="bottom" />
+    <input type="submit" value="Save Calibration"/>
+</form>
+
+<form id="cal_instrument_form">
+    axis: <input name="axis" />
+    top: <input name="top" />
+    blowout: <input name="blowout" />
+    droptip: <input name="droptip" />
+    <input type="submit" value="Save Calibration"/>
+</form>
+
+<script type="text/javascript" src="/static/js/socket.io.min.js"></script>
+<script type="text/javascript" charset="utf-8">
+socket = io.connect('//' + document.domain + ':' + location.port);
+(function() {
+
+    var run_button = document.getElementById('run_protocol');
+    var connect_button = document.getElementById('connect_serial');
+    var connect_input = document.getElementById('connect_port');
+    var disconnect_button = document.getElementById('disconnect_serial');
+    var jog_form = document.getElementById('jog_form');
+    var cal_container_form = document.getElementById('cal_container_form');
+    var cal_instrument_form = document.getElementById('cal_instrument_form');
+    var output = document.getElementById('output');
+ 
+    socket.on('connect', function() {
+        socket.emit('connected', {data: 'Hello!'});
+    });
+
+    socket.on('protocol_progress', function(data) {
+        if (data.current == data.total) {
+            run_button.innerHTML = 'Run Protocol'
+        } else {
+           run_button.innerHTML = (data.current + 1) + " of " + data.total;
+        }
+    });
+
+    socket.on('protocol_start', function() {
+        run_button.innerHTML = 'Running Protocol';
+    });
+
+    socket.on('protocol_error', function(data) {
+        alert('Error Running Protocol: '+data);
+    });
+
+    run_button.addEventListener('click', function() {
+        socket.emit('start_protocol');
+    });
+
+    connect_button.addEventListener('click', function() {
+        port = connect_input.value;
+        socket.emit('connect_serial', {port: port});
+    });
+
+    disconnect_button.addEventListener('click', function() {
+        socket.emit('disconnect_serial');
+    });
+
+    jog_form.addEventListener('submit', function(e, t) {
+        e.preventDefault();
+        var inputs = event.target.querySelectorAll('input');
+        obj = {};
+        Array.prototype.forEach.call(inputs, function(input) {
+            if (!input.name) return;
+            obj[input.name] = input.value;
+        });
+        socket.emit("move", obj);
+    });
+
+    cal_container_form.addEventListener('submit', function(e, t) {
+        e.preventDefault();
+        var inputs = event.target.querySelectorAll('input');
+        obj = {};
+        Array.prototype.forEach.call(inputs, function(input) {
+            if (!input.name) return;
+            obj[input.name] = input.value;
+        });
+        socket.emit("calibrate_container", obj);
+    });
+
+    cal_instrument_form.addEventListener('submit', function(e, t) {
+        e.preventDefault();
+        var inputs = event.target.querySelectorAll('input');
+        obj = {};
+        Array.prototype.forEach.call(inputs, function(input) {
+            if (!input.name) return;
+            obj[input.name] = input.value;
+        });
+        socket.emit("calibrate_instrument", obj);
+    });
+}())
+</script>
+
+</body>
+</html>
